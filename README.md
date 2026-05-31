@@ -105,7 +105,8 @@ Started from the `pipecat-ai/yc-voice-agents-hackathon` flower-shop starter. We 
 - Cekura observability integration for real production calls
 - [`dashboard.html`](dashboard.html) — iteration timeline and quality metrics
 - [`architecture.html`](architecture.html) — system data flow diagram
-- [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md), [`v1_5_proposed_prompt.md`](v1_5_proposed_prompt.md), [`sample_call_transcript.md`](sample_call_transcript.md)
+- [`v1_5_proposed_prompt.md`](v1_5_proposed_prompt.md) — next-iteration patches derived from real calls
+- [`calls/`](calls/) — five real phone call transcripts with per-call analysis (booking, red-team, PHI defense, name-collection loop)
 
 **Borrowed from the starter:**
 - The repository scaffold from `pipecat-ai/yc-voice-agents-hackathon`
