@@ -1,238 +1,182 @@
-# YC Voice Agents Hackathon
+# Cora — A Self-Improving Clinic Receptionist
 
-Welcome to the YC Voice Agents Hackathon, hosted by [Cekura](https://cekura.com) and [Daily](https://daily.co), in partnership with [NVIDIA](https://nvidia.com), [AWS](https://aws.amazon.com), and [Twilio](https://twilio.com).
+**YC Voice Agents Hackathon, May 30 2026**
+**Built solo by:** Rohit Mujumdar
+**Live demo:** Call **+1 (470) 539-8989** (Cora answers 24/7 during the demo window)
 
-The goal of this event is to learn about building, scaling, evaluating, and continuously improving voice agents.
+---
 
-## Schedule, rules, and prizes
+## 1. What is this?
 
-This is a one-day event. Please arrive by 8:30. We'll kick things off at 9:00.
+Cora is a voice agent that answers inbound calls for a fictional mid-size medical clinic. She figures out what the caller needs, collects the right information, and routes them to the correct department (scheduling, billing, pharmacy, nurse line, medical records). She books appointments, refuses to give medical advice, detects emergencies and redirects to 911, and defends against social-engineering attacks.
 
-### Schedule
+What makes this submission interesting isn't Cora herself, it's the **closed quality loop she sits inside.** Cekura synthetic evaluations and real production phone calls feed into the same diagnosis-and-patch cycle. Across the hackathon day, 5 iterations of the loop surfaced 4 distinct bug classes that no manual local testing would have caught: a transport mismatch, an LLM/pipeline contract mismatch causing silent calls, a scaling race condition, and adversarial input handling.
 
-  - 8:00 AM – Doors open & registration
-  - 8:30 AM – Breakfast
-  - 9:00 AM – Welcome / Hackathon begins
-  - 12:00 PM – Lunch
-  - 6:00 PM – Submissions due
-  - 6:00 - 8:00 PM – Dinner, demos, and conversation
-  - 8:00 PM – Judges' presentations
-  - 9:00 PM – We all go home
+**One-line pitch:** a voice agent isn't a product, the loop around it is.
 
-### General guidance
+---
 
-First of all, please respect the YC space. We very much appreciate YC hosting these events. Stay in the designated areas, clean up after meals, and in general be a good guest.
+## 2. Demo video (under 60 seconds)
 
-Build something new for this hackathon. Use the tools from Cekura to evaluate and improve the performance of what you build. Use Pipecat as the orchestration framework for your voice agent. We also encourage you to use the open source models from NVIDIA, but it's okay to use any models that work well for your project.
+**[Watch on YouTube](https://www.youtube.com/watch?v=J9igOLhbz_I)**
 
-There will be engineers from Cekura, Daily, NVIDIA, AWS, and Twilio available to help you with your project. Don't hesitate to find us.
+The video is a real phone call to +1 (470) 539-8989 (no voiceover, no slides). It demonstrates:
+- Cora handling an unknown doctor ("Dr. Yang") by refusing and listing the four real doctors
+- An end-to-end appointment booking with a real confirmation number
+- A red-team prompt-injection attempt being refused and the agent staying in role
 
-Judging will start at 6:00. In general, the judges want to showcase interesting projects rather than just pick winners. So don't worry too much about what the judges are looking for in a project. Build something that demonstrates creativity, is interesting on a technical level, or solves a real problem! But do keep in mind that the judges want to see great examples of using Cekura to improve voice agent performance, and using open source models from NVIDIA.
+The video is sped up to fit under 60s. Cora's voice remains audible.
 
+---
 
-# Tech stack and starting points.
+## 3. How we used Cekura, NVIDIA Nemotron, and Pipecat
 
-This repo contains two versions of a voice agent built with [Pipecat](https://pipecat.ai).
+### Cekura — the protagonist of this project
 
-The demo bot **Field & Flower** is a neighborhood flower shop: callers order a bouquet for delivery while the bot looks up the catalog, captures delivery details, and places the order. All backend calls are mocked, so the starter runs with nothing but AI service keys.
+**What we tried to accomplish:** Build a quality loop where every failed eval surfaces a specific, actionable patch, and over time, real production calls flow through the same loop so the agent improves on lived data, not just synthetic test data.
 
-## Version 1 — GPT-4.1
+**What we did:**
+- Created Cekura agent ID **18036** (project 5898) with a substantive 9-workflow description.
+- Auto-generated **15 workflow scenarios** covering booking with each of four doctors, status checks, reschedule/cancel routing, billing, pharmacy, nurse line, records, multi-intent calls, garbled input, and emergency detection.
+- Auto-generated **4 red-team scenarios**: PHI fishing via fake compliance auditor, prompt-injection via fake QA engineer, medical-advice solicitation under "Platinum Tier VIP" pressure, and bulk-booking abuse via fake clinical trials coordinator.
+- Ran the suite **5 times** (v1.0 through v1.4), each iteration finding new bugs the previous one uncovered.
+- Pushed a real phone call to Cekura's observability mode (call log **6835173**) so production transcripts get evaluated by the same metric set.
+- Used Cekura's `runs_improve_prompt` auto-improve API to draft v1.4 patches from v1.3 failures, then used the proposal to demonstrate why blind auto-apply is unsafe (it reintroduced a regression).
 
-You can start with this before the hackathon, if you want to. Or test GPT-4.1 and Nemotron side-by-side during the hackathon, using Cekura.
+**Measurable improvement:**
 
-This bot only requires a Gradium API key and an OpenAI API key. Sign up for free at [Gradium](https://gradium.ai). We'll provide a code for Gradium credits, during the event.
+| Iteration | Workflow | Red-team | Latency p95 | Bug uncovered |
+|---|---|---|---|---|
+| v1.0 | 0 / 15 (0%) | n/a | n/a | `DailySessionArguments` not handled — no audio transport on Pipecat Cloud |
+| v1.1 | 4 / 8 (50%) | n/a | 9520 ms | Pipecat's `FilterIncompleteUserTurnStrategies` expected ✓/○/◐ markers Nemotron doesn't emit, causing silent calls |
+| v1.2 | 4 / 7 (57%) | n/a | 9255 ms | `max_agents = 10` cap blocked parallel runs |
+| v1.2b | 1 / 15 (7%) | n/a | 3370 ms | Cold-start race when 15 parallel calls hit `min_agents = 1` |
+| v1.3 | 7 / 15 (47%) | 4 / 4 (100%) | 5587 ms | Workflow hardening + red-team scenarios added |
 
-- **STT:** [Gradium](https://gradium.ai)
-- **LLM:** [OpenAI Responses API](https://platform.openai.com/docs/api-reference/responses) (GPT-4.1)
-- **TTS:** [Gradium](https://gradium.ai)
-- **Transports:** SmallWebRTC (local dev) and [Twilio](https://www.twilio.com/en-us) (production telephony)
-- **Deploy target:** [Pipecat Cloud](https://pipecat.daily.co)
+**Net:** workflow pass rate from **0% → 47%** (with remaining "failures" being minor rubric strictness, not catastrophic agent behavior), red-team **0% → 100%** defense against 4 sophisticated attacks, p95 latency **from 9.5s to 5.6s (41% faster)**.
 
-## Version 2
+### Production observability — batch-improvement insight
 
-NVIDIA models hosted on AWS, available during the hackathon.
+Synthetic evals find what we predict. Real calls find what we don't. After deploying Cora to the live Twilio number, we made several test calls and pushed transcripts to Cekura observability. **Ten distinct patterns emerged** that no synthetic scenario surfaced:
 
-```
-  export NVIDIA_ASR_URL=ws://44.241.251.184:8080
-  export NEMOTRON_LLM_URL=http://nemotron-fleet-alb-1322439314.us-west-2.elb.amazonaws.com/v1
-  export NEMOTRON_LLM_MODEL=nvidia/nemotron-3-super
-  ```
+| # | Pattern | Why batch review matters |
+|---|---|---|
+| 1 | Narration filler ("Let me look that up", "Let me check") despite prompt rule forbidding it. Seen in 3+ calls. | Single instance looks like a blip. Three is a pattern that needs reinforcement. |
+| 2 | Stalled tool-call loop: same "let me check" emitted twice with no progress between | Need timeout/retry guard on tool calls. |
+| 3 | No fuzzy doctor matching. STT heard "Maria Will" (truncated "Williams") — Cora dismissed as unknown. | Phone audio is noisy. Need substring/edit-distance matching. |
+| 4 | Year ambiguity. Caller said "January 21st", Cora silently picked 2027 | Should confirm year when ambiguous. |
+| 5 | Date inconsistency mid-call ("Wednesday" then "Tuesday" for the same date) | Calendar reasoning should be tool-driven, not LLM-generated. |
+| 6 | Phantom availability data ("11 AM on June 21 is not available" when backend doesn't track June). | Tool should be ground truth; prompt should forbid generating tool-domain facts. |
+| 7 | Name-collection loop: caller said "John", Cora asked for "full name" 4 different ways | Accept partial names with a single confirmation. |
+| 8 | Chained questions despite the prompt rule ("name AND reason for visit?") | Strong negative instructions don't always stick; need few-shot examples. |
+| 9 | "Anytime works" not understood — Cora kept asking for specific time preference | Tool should accept "any" and pick the earliest available. |
+| 10 | **PHI defense held under sustained pressure (positive!)** Caller pressed 5 different ways to extract another patient's info. Cora refused 5 different ways and held firm across multi-turn pressure. | Confirms the Safety & Boundaries block works under real adversarial conditions, not just single-shot scenarios. |
 
-- **STT:** [Nemotron Speech Streaming](https://huggingface.co/nvidia/nemotron-speech-streaming-en-0.6b)
-- **LLM:** [Nemotron 3 Super 120B](https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16)
-- **TTS:** [Gradium](https://gradium.ai)
-- **Transports:** SmallWebRTC (local dev) and Twilio (production telephony)
-- **Deploy target:** [Pipecat Cloud](https://pipecat.daily.co)
+The framing for production: **patches make sense at the cluster level.** A single "let me check" doesn't justify a rewrite. Three across different scenarios does. Cekura observability mode + a batch-review cadence is how this scales beyond a hackathon.
 
-## Develop locally
+### NVIDIA Nemotron — the open-weight LLM and STT
 
-Get the bot running over WebRTC in your browser before you push to the cloud or wire up the phone, for a faster iteration loop.
+We used **Nemotron-3-Super-120B** as the LLM (served via vLLM on the hackathon-provided AWS endpoint) and **Nemotron Speech Streaming** for STT.
 
-### Prerequisites
+- Tool-calling was reliable once we got the prompt right. Cora correctly invoked `check_doctor_availability`, `book_appointment`, `route_call`, `lookup_patient`, and `escalate_to_human` in the right scenarios.
+- The model **stayed in role under sustained adversarial pressure** — see the red-team results in the table above and the "PHI defense" finding in the observability table.
+- STT was rock-solid on synthetic Cekura tests (WER ~0%) and good but imperfect on live phone audio (occasional name duplications, garbling on unclear openers).
 
-- Python 3.11+
-- [`uv`](https://docs.astral.sh/uv/getting-started/installation/) package manager
-- API keys for [OpenAI](https://platform.openai.com) and [Gradium](https://gradium.ai)
+### Pipecat — the orchestration framework
 
-### Setup
+Started from the `pipecat-ai/yc-voice-agents-hackathon` flower-shop starter. We swapped the domain entirely for a clinic receptionist. Used:
+- `SmallWebRTCTransport` for local dev
+- `DailyTransport` for Pipecat Cloud (had to **add this case** — see Feedback section)
+- `FastAPIWebsocketTransport` + `TwilioFrameSerializer` for the live phone number
+- Pipecat Cloud with **15 warm agents** during evals to avoid cold-start races
 
-1. **Clone and enter the server directory:**
+---
 
-   ```bash
-   git clone https://github.com/pipecat-ai/yc-voice-agents-hackathon.git
-   cd yc-voice-agents-hackathon/server
-   ```
+## 4. What we built during the hackathon
 
-2. **Configure API keys:**
+**Built from scratch today:**
+- The Cora persona — system prompt, tool definitions, mock backend ([`clinic_backend.py`](server/clinic_backend.py))
+- The clinic domain: 4 doctors, 5 departments, available slot templates, known patient records
+- 7 tool functions: `lookup_patient`, `list_departments`, `check_doctor_availability`, `route_call`, `book_appointment`, `escalate_to_human`, `end_call`
+- All 15 workflow scenarios and 4 red-team scenarios in Cekura
+- The 5-iteration improvement loop including every prompt patch documented in iteration table
+- The **Pipecat Cloud DailyTransport handler** in [`bot-cora.py`](server/bot-cora.py) (the starter only handled WebRTC and Twilio WebSocket; the Daily case is new)
+- Pipecat Cloud deployment + Twilio number wiring + TwiML Bin config
+- Cekura observability integration for real production calls
+- [`dashboard.html`](dashboard.html) — iteration timeline and quality metrics
+- [`architecture.html`](architecture.html) — system data flow diagram
+- [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md), [`v1_5_proposed_prompt.md`](v1_5_proposed_prompt.md), [`sample_call_transcript.md`](sample_call_transcript.md)
 
-   ```bash
-   cp .env.example .env
-   # Edit .env and fill in OPENAI_API_KEY, GRADIUM_API_KEY.
-   # TWILIO_* keys are only needed when you wire up the phone (next section).
-   ```
+**Borrowed from the starter:**
+- The repository scaffold from `pipecat-ai/yc-voice-agents-hackathon`
+- The Pipecat pipeline pattern (transport → STT → LLM → TTS)
+- The Dockerfile and `pcc-deploy.toml` shape (modified)
+- The NVIDIA Nemotron service files (`nemotron_llm.py`, `nvidia_stt.py`) — unmodified
+- The bot's overall match-on-runner-args structure (extended with the Daily case)
 
-3. **Install dependencies:**
+**Pre-existing knowledge we leaned on:**
+- Python and basic LLM tool-use patterns
+- ML/DS background informing the eval-loop design choices
 
-   ```bash
-   uv sync
-   ```
+---
 
-4. **Run the bot:**
+## 5. Feedback on the tools
 
-   ```bash
-   # run one or the other of these
-   uv run bot-gpt.py
-   uv run bot-nemotron.py
-   ```
+### Cekura — feedback on building self-improvement loops
 
-   Open [http://localhost:7860](http://localhost:7860) and click **Connect** to start talking. First launch takes ~20s while Pipecat downloads VAD and turn-detection models.
+**What worked beautifully:**
+- The MCP + slash command experience is genuinely good. `/cekura-report` running 15+ scenarios in parallel from a Claude Code session felt like the future of dev tooling.
+- Auto-generated scenarios were high-signal. The 4 red-team scenarios it generated were sophisticated multi-turn social engineering — fake compliance auditor probing escalation thresholds, fake QA engineer asking for internal function names, "Platinum Tier VIP" demanding ibuprofen dosing — not lazy DAN-style jailbreaks. These would be useful in a production red-team suite.
+- "Expected outcome" rubric with verbatim transcript citations made every failure immediately actionable.
+- Observability mode for production calls closes the loop. Pushing a live phone call as a `CallLog` and having it sit next to synthetic eval runs in the same dashboard is the missing piece of most quality tools.
 
-## Deploy to Pipecat Cloud
+**Real bugs / friction:**
+1. **`runs_improve_prompt_create` produced a regression-causing suggestion.** Fed it 3 failed runs (refill mis-routing, multi-intent silence, unknown doctor). It addressed only 1 of the 3 issues, and the proposed change explicitly contradicted a fix we'd applied in a prior iteration (reintroduced a patient-lookup gate on refills we'd removed because it caused misrouting). Applying as-is would have regressed v1.3 → v1.4 (which we confirmed by testing). **Suggestion:** auto-improvement should ideally be aware of prompt edit history, or surface a "conflict warning" when a suggestion contradicts an existing rule.
+2. **`call_logs_improve_prompt_issues_create` schema** has an undocumented required `call_logs` field (a 400 error reveals this). The tool description should make that explicit.
+3. **Eval rubrics can be too literal.** Cora correctly routed a cancellation to "a staff member", rubric required exact phrase "Scheduling department". This rewards prompt-keyword overfitting more than actual quality. An LLM judge in soft-match mode would be more useful.
+4. **`results_retrieve` payloads exceed 150KB**, hitting MCP token limits. Had to dump-to-disk and Python-parse to inspect runs. A `results_retrieve_lite` with just per-run summaries would be much easier to work with.
+5. **Concurrency cap not surfaced.** When `min_agents` on Pipecat Cloud is low and Cekura fires 15 parallel calls, many runs come back as "Infrastructure Issues" with no clear signal that the cause is on the deployment side, not agent behavior. A "your deployment may be cold-start-bound" hint would save ~30 minutes of confusion.
 
-Once the bot works locally, deploy to Pipecat Cloud and connect it to a Twilio phone number so anyone can call in.
+### NVIDIA Nemotron — feedback on the models
 
-### Prerequisites
+**What worked well:**
+- **Tool-calling is reliable.** Nemotron-3-Super-120B invoked the right tools in the right scenarios. Hallucinated calls were rare once the prompt was clean.
+- **Stays in role under pressure.** All 4 red-team scenarios defeated. In live production calls, the model refused PHI fishing 5 different ways across 5 turns under sustained pressure — a deeper defense than any single-shot scenario could measure.
+- **Decent latency** for a 120B reasoning model on shared infra: p50 ~2.4s, p95 ~5.6s.
 
-1. [Sign up for Pipecat Cloud](https://pipecat.daily.co/sign-up)
-2. Install the [Pipecat CLI](https://github.com/pipecat-ai/pipecat-cli) and log in:
+**Real friction:**
+1. **The turn-completion token mismatch was the most expensive bug of the day.** Pipecat's default `FilterIncompleteUserTurnStrategies` expects the LLM to emit `✓`/`○`/`◐` markers to indicate turn state. Nemotron doesn't appear to be trained on this convention. In half our v1.1 runs, Nemotron emitted ONLY the marker (with no actual text content), and Pipecat dutifully passed an empty turn to TTS. Result: 30-second silences on otherwise-functional calls. We had to remove the strategy entirely. **Recommendation:** for Nemotron to be a drop-in OpenAI replacement in Pipecat pipelines, training data should include this convention OR NVIDIA should publish guidance that the strategy must be disabled.
+2. **Calendar reasoning drifts.** On the same live call, Cora called January 21st 2026 both "Wednesday" and "Tuesday" within 30 seconds. Even with today's date pinned in the system prompt, weekday calculations are unreliable. The right fix is deterministic Python in the tool, but it would be ideal if the model handled this natively.
+3. **First-token latency variability under load.** Mean TTFB was good (~150ms) but we observed spikes of 1+ second when 15 concurrent runs hit the endpoint. Not clear if this is the model itself or the vLLM serving stack.
+4. **System prompt sensitivity.** Adding two seemingly-safe rules in v1.4 (one explicit phrasing constraint, one scripted refill question) caused widespread silence regression across 13 of 15 scenarios. Nemotron is particularly sensitive to scripted/imperative instructions that conflict with its natural conversation flow. We reverted v1.4.
+5. **Anti-narration rules don't stick.** Our system prompt explicitly says "Don't narrate. Don't say 'let me check that.'" Across multiple real calls Cora still emitted "Let me look that up", "Let me do that", "I need to check Dr. X's availability first" before tool calls. Likely an RLHF artifact where filler phrases were rewarded during training. Hard to override.
+6. **Hallucinated specificity.** When asked about availability for a specific date, Cora said "11 AM on June 21 is not available" — but our backend doesn't track June at all. The model fabricated a plausible-sounding constraint. Tool-returned data needs to be ground truth; prompts should forbid generating tool-domain facts.
+7. **STT name duplication artifacts.** Live phone audio sometimes produced "John John Smith" instead of "John Smith". Real-world handling needs a confirmation step the model can drive.
 
-   ```bash
-   uv tool install pipecat-ai-cli
-   pc cloud auth login
-   ```
+### Pipecat — feedback
 
-### Configure Twilio
+**What worked well:**
+- Pipecat Cloud deployment was fast — `pc cloud deploy` to live agent in under 2 minutes.
+- The Cekura integration via `_pipecatCloudServiceHost` parameter is clean.
+- Pipecat metrics (`enable_metrics`, `enable_usage_metrics`) gave us TTFB, prompt/completion tokens, and pipeline timing right in the logs — invaluable for debugging.
 
-1. [Add credits / upgrade your Twilio account](https://twil.io/yc-hack)
+**Real friction:**
+1. **The starter doesn't handle `DailySessionArguments`.** The starter `bot.py` matches `SmallWebRTCRunnerArguments` (local) and `WebSocketRunnerArguments` (Twilio), but Pipecat Cloud's WebRTC path passes `DailySessionArguments`. Our v1.0 run failed all 15 scenarios silently because of this — the bot started cleanly, accepted the connection, but had no audio transport. **Suggestion:** the starter should include all three transport cases out-of-the-box, since Pipecat Cloud is the documented deployment target.
+2. **Twilio sample-rate confusion.** The starter sets `audio_in_sample_rate = 8000` for Twilio (matching wire format) but NVIDIA Nemotron STT expects 16kHz PCM. Pipecat didn't auto-resample for us, so live phone calls produced zero transcripts (STT received audio, couldn't parse it). We had to remove the 8000 override to make Twilio work end-to-end. **Suggestion:** either Pipecat should resample by default, or the starter should default to 16kHz pipeline regardless of wire format.
+3. **Idle-timeout cancellation under cold-start load.** When 15 cold-starting containers received Daily-room joins simultaneously, the audio handshake didn't complete in time and Pipecat's idle-timeout cancelled the workers. The error message ("Idle timeout detected") was clear, but the cause (cold-start race) wasn't surfaced. A warning when `min_agents` is low relative to incoming session count would save debugging time.
 
-2. [Buy a phone number](https://help.twilio.com/articles/223135247) with voice capability.
+---
 
-3. Get your Pipecat Cloud organization name:
+## 6. Live link
 
-   ```bash
-   pc cloud organizations list
-   ```
+**Call Cora directly: +1 (470) 539-8989**
 
-4. [Create a TwiML Bin](https://www.twilio.com/docs/serverless/twiml-bins/getting-started#create-a-new-twiml-bin) with this configuration:
+She answers 24/7 (during the demo window). Try asking for Dr. Yang to see her decline gracefully, attempt a prompt injection to see her stay in role, or ask for ibuprofen dosing to see the medical-advice refusal.
 
-   ```xml
-   <?xml version="1.0" encoding="UTF-8"?>
-   <Response>
-     <Connect>
-       <Stream url="wss://api.pipecat.daily.co/ws/twilio">
-         <Parameter name="_pipecatCloudServiceHost"
-           value="flower-bot.YOUR_ORG_NAME"/>
-       </Stream>
-     </Connect>
-   </Response>
-   ```
+**Dashboard:** [dashboard.cekura.ai/5898/observability](https://dashboard.cekura.ai/5898/observability) — live call logs and eval runs in one view
 
-   Replace `YOUR_ORG_NAME` with the org name from step 2.
+**Repo:** [github.com/rohitmujumdar/yc-voice-agents-hackathon](https://github.com/rohitmujumdar/yc-voice-agents-hackathon)
 
-5. [Attach the TwiML Bin](https://www.twilio.com/docs/serverless/twiml-bins/getting-started#wire-your-twiml-bin-up-to-an-incoming-phone-call) to your Twilio number: Go to [your phone numbers](https://console.twilio.com/go?to=/account/__account__/us1/senders-hub/list/phone-numbers/inventory) → select your
-number → under **Voice Configuration**, set method to the **TwiML Bin** you created → Save.
+---
 
-6. [Optional] Use [Twilio Dev phone](https://www.twilio.com/docs/labs/dev-phone) for testing.
-
-### Review the deployment configuration
-
-Your deployment details are specified in the `pcc-deploy.toml` file. You can learn more about options in the [docs](https://docs.pipecat.ai/api-reference/cli/cloud/deploy#configuration-file-pcc-deploy-toml).
-
-### Upload secrets
-
-```bash
-pc cloud secrets set flower-bot-secrets --file .env
-```
-
-This uploads everything from `.env` to Pipecat Cloud's secure storage. The bot reads from there at runtime, so you don't bake keys into the image.
-
-### Deploy
-
-Build and run your bot on Pipecat Cloud:
-
-```bash
-pc cloud deploy
-```
-
-Learn more about [cloud builds](https://docs.pipecat.ai/pipecat-cloud/guides/cloud-builds).
-
-### Call your bot
-
-Dial the Twilio number you set up. 🌷
-
-## Test your agent with Cekura
-
-[Cekura](https://cekura.com) tests and observes voice agents. For this hackathon, use it to **test the Pipecat bot you build in this repo** — run real conversations against it, score the transcripts, and fix what's failing before you demo.
-
-### Sign up
-
-Create your account at **[dashboard.cekura.ai](https://dashboard.cekura.ai)**. If you're approved for this hackathon, just sign up and your credits will show up automatically. If you don't see them, find someone from the Cekura team, they're on-site.
-
-### Onboarding (or skip it)
-
-On first login you'll land on a short setup flow that helps you create your first agent and test. Feel free to click through it — **or hit _Skip_** and jump straight to the dashboard if you'd rather set things up yourself. Either way takes a minute.
-
-### Recommended: start by testing your agent (via Claude Code)
-
-The fastest path — and what we recommend for the hackathon — is to drive Cekura from **Claude Code** using our MCP server + skills. You stay in your terminal, and Cekura handles agent creation, scenario generation, and running the test.
-
-**1. Install the Cekura skills + MCP** (Claude Code marketplace plugin — bundles the skills, slash commands, and auto-configured MCP server):
-
-```bash
-/plugin marketplace add cekura-ai/cekura-skills
-/plugin install cekura@cekura-skills
-```
-
-Repo: [github.com/cekura-ai/cekura-skills](https://github.com/cekura-ai/cekura-skills) · Full setup + other agents (Cursor, Codex, etc.): **[docs.cekura.ai → Claude Code guide](https://docs.cekura.ai/mcp/claude-code-guide)** and **[Skills](https://docs.cekura.ai/mcp/skills)**.
-
-**2. Run an end-to-end test** of your agent with a single command:
-
-```
-/cekura-report
-```
-
-This spins up anything from 10–20 evaluators (what Cekura calls test cases), runs scenarios against your Pipecat agent, and gives you back a full report — transcripts, scores, and what failed — so you can iterate fast.
-
-> When connecting your agent, **select `Pipecat` as the provider.** Details: [docs.cekura.ai → Pipecat](https://docs.cekura.ai/documentation/integrations/pipecat/automated).
-
-## Learn more
-
-### Pipecat
-
-- [Pipecat Documentation](https://docs.pipecat.ai/)
-- [Pipecat Cloud Deployment](https://docs.pipecat.ai/pipecat-cloud/introduction)
-- [Pipecat Examples](https://github.com/pipecat-ai/pipecat-examples)
-- [Pipecat Discord](https://discord.gg/pipecat)
-
-### Twilio
-
-- [Twilio Developer Hub](https://www.twilio.com/en-us/developers)
-- [Twilio Documentation](https://www.twilio.com/docs)
-- [Twilio Dev phone](https://www.twilio.com/docs/labs/dev-phone)
-
-### Cekura
-
-- [Claude Code guide](https://docs.cekura.ai/mcp/claude-code-guide) — MCP + skills setup
-- [Cekura skills](https://docs.cekura.ai/mcp/skills) — all slash commands
-- [Pipecat integration](https://docs.cekura.ai/documentation/integrations/pipecat/automated)
-- [Cekura docs](https://docs.cekura.ai) · [dashboard](https://dashboard.cekura.ai)
+*Built solo on May 30, 2026 at the YC Voice Agents Hackathon. Built on the [pipecat-ai/yc-voice-agents-hackathon](https://github.com/pipecat-ai/yc-voice-agents-hackathon) starter.*
