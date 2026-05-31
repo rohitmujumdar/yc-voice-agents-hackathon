@@ -60,15 +60,16 @@ Sped up to fit under 60s. Cora's voice remains audible.
 - Pushed a live phone call into Cekura observability as `CallLog` 6835173 — production transcripts now sit next to synthetic eval runs in the same dashboard.
 - Used `runs_improve_prompt_create` to draft v1.4 patches from v1.3 failures. The proposal reintroduced a bug we'd already fixed, which is why we kept the human gate.
 
-**Measurable improvement:**
+**Measurable improvement** (each row links to a public Cekura share view):
 
 | Iteration | Workflow | Red-team | Latency p95 | Bug uncovered |
 |---|---|---|---|---|
-| v1.0 | 0 / 15 (0%) | n/a | n/a | `DailySessionArguments` not handled — no audio transport on Pipecat Cloud |
-| v1.1 | 4 / 8 (50%) | n/a | 9520 ms | `FilterIncompleteUserTurnStrategies` expected ✓/○/◐ markers Nemotron doesn't emit — silent calls |
-| v1.2 | 4 / 7 (57%) | n/a | 9255 ms | `max_agents = 10` cap blocked parallel runs |
+| [v1.0](https://dashboard.cekura.ai/share/result/591227/CxpCItllHEHSNqoqF0nXLtYnyrreHRmj2XEMSuTRdF4) | 0 / 15 (0%) | n/a | n/a | `DailySessionArguments` not handled — no audio transport on Pipecat Cloud |
+| [v1.1](https://dashboard.cekura.ai/share/result/591270/kAWET1fRT2iRD9gLI7T9mlYHsg7Qo7AgmuqAvh42Te0) | 4 / 8 (50%) | n/a | 9520 ms | `FilterIncompleteUserTurnStrategies` expected ✓/○/◐ markers Nemotron doesn't emit — silent calls |
+| [v1.2](https://dashboard.cekura.ai/share/result/591367/I-7kzRv0U4PM8VHmiS2xK3yfbwpPsNawtePep3gkiPg) | 4 / 7 (57%) | n/a | 9255 ms | `max_agents = 10` cap blocked parallel runs |
 | v1.2b | 1 / 15 (7%) | n/a | 3370 ms | Cold-start race when 15 parallel calls hit `min_agents = 1` |
-| v1.3 | 7 / 15 (47%) | 4 / 4 (100%) | 5587 ms | Workflow hardening + red-team scenarios added |
+| [v1.3](https://dashboard.cekura.ai/share/result/591521/VW1-y-48d_nD82fPk8TEww-6SUadfLSPyw51Un6FIdA) | 7 / 15 (47%) | 4 / 4 (100%) | 5587 ms | Workflow hardening + red-team scenarios added |
+| [v1.4](https://dashboard.cekura.ai/share/result/591634/Tb0f5S0uyB2IS8uKBYCR2eUEoaO7dQkMoksAaFcJ1QE) (reverted) | 3 / 14 (regression) | 1 / 1 | 5470 ms | Tried `runs_improve_prompt` auto-patch; reintroduced an earlier bug — we reverted |
 
 Workflow pass rate **0% → 47%** (remaining "failures" are rubric strictness, not catastrophic agent behavior). Red-team **0% → 100%** across 4 sophisticated attacks. p95 latency **9.5s → 5.6s (41% faster)**.
 
@@ -201,7 +202,12 @@ What broke or rubbed wrong:
 
 **Phone:** Call **+1 (470) 539-8989**. Cora answers during the demo window. Try asking for Dr. Yang to see her decline gracefully, attempt a prompt injection to see her stay in role, or ask for ibuprofen dosing to see the medical-advice refusal.
 
-**Cekura observability:** [dashboard.cekura.ai](https://dashboard.cekura.ai) (navigate to project 5898). Live call logs and eval runs in one view.
+**Cekura eval results (public shareable links — no login needed):**
+- [v1.0 baseline (0/15)](https://dashboard.cekura.ai/share/result/591227/CxpCItllHEHSNqoqF0nXLtYnyrreHRmj2XEMSuTRdF4) — every scenario fails (transport bug)
+- [v1.1 (4/8)](https://dashboard.cekura.ai/share/result/591270/kAWET1fRT2iRD9gLI7T9mlYHsg7Qo7AgmuqAvh42Te0) — silent calls bug surfaces
+- [v1.2 (4/7)](https://dashboard.cekura.ai/share/result/591367/I-7kzRv0U4PM8VHmiS2xK3yfbwpPsNawtePep3gkiPg) — silence fix verified
+- [**v1.3 (7/15 + 4/4 red-team)**](https://dashboard.cekura.ai/share/result/591521/VW1-y-48d_nD82fPk8TEww-6SUadfLSPyw51Un6FIdA) — the best run
+- [v1.4 regression](https://dashboard.cekura.ai/share/result/591634/Tb0f5S0uyB2IS8uKBYCR2eUEoaO7dQkMoksAaFcJ1QE) — what blind auto-patching does
 
 **Repo:** [github.com/rohitmujumdar/yc-voice-agents-hackathon](https://github.com/rohitmujumdar/yc-voice-agents-hackathon)
 
