@@ -1,8 +1,8 @@
 # Cora — A Self-Improving Clinic Receptionist
 
-**YC Voice Agents Hackathon, May 30 2026**
-**Built solo by:** Rohit Mujumdar
-**Live demo:** Call **+1 (470) 539-8989** (Cora answers 24/7 during the demo window)
+**YC Voice Agents Hackathon, May 30 2026** <p>
+**Built by:** Rohit Mujumdar with Claude Code <p>
+**Live demo:** Call **+1 (470) 539-8989** (Cora answers 24/7 during the demo window) <p>
 
 ---
 
