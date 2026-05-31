@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cora Architecture</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #0f1419;
+    color: #e6e6e6;
+    margin: 0;
+    padding: 40px 20px;
+    min-height: 100vh;
+  }
+  h1 { text-align: center; font-size: 28px; margin-bottom: 8px; }
+  .subtitle { text-align: center; color: #8b949e; margin-bottom: 40px; font-size: 14px; }
+  .canvas {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+  }
+  .layer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .layer-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #58a6ff;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .row {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .box {
+    background: #1c2128;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    padding: 14px 18px;
+    min-width: 180px;
+    flex: 0 1 auto;
+    text-align: center;
+    transition: all .2s;
+  }
+  .box:hover { transform: translateY(-2px); border-color: #58a6ff; }
+  .box.caller { border-color: #f0883e; background: #2a1f15; }
+  .box.cekura { border-color: #a371f7; background: #1f1929; }
+  .box.twilio { border-color: #e53935; background: #2a1518; }
+  .box.cloud { border-color: #2dd4bf; background: #142826; }
+  .box.bot { border-color: #58a6ff; background: #15243a; }
+  .box.svc { border-color: #d29922; background: #2b2410; }
+  .box.data { border-color: #6e7681; background: #1a1d22; }
+  .box .name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .box .desc { font-size: 11px; color: #8b949e; }
+  .arrow {
+    text-align: center;
+    color: #58a6ff;
+    font-size: 24px;
+    line-height: 0.6;
+  }
+  .branch {
+    display: flex;
+    justify-content: center;
+    color: #8b949e;
+    font-size: 12px;
+    font-style: italic;
+    margin: -8px 0;
+  }
+  .pipeline-wrap {
+    border: 2px dashed #58a6ff;
+    border-radius: 14px;
+    padding: 18px;
+    background: rgba(88,166,255,.05);
+  }
+  .pipeline-title {
+    text-align: center;
+    color: #58a6ff;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 14px;
+  }
+  .pipeline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .pipeline .box { min-width: 140px; padding: 10px 14px; }
+  .pipeline .step-arrow {
+    color: #58a6ff;
+    font-size: 28px;
+    padding: 0 4px;
+  }
+  .legend {
+    max-width: 1200px;
+    margin: 50px auto 0;
+    background: #1c2128;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    padding: 20px 24px;
+  }
+  .legend h3 { margin: 0 0 14px; font-size: 14px; color: #58a6ff; text-transform: uppercase; letter-spacing: 1px; }
+  .legend ul { margin: 0; padding-left: 20px; line-height: 1.7; font-size: 13px; color: #c9d1d9; }
+  .legend strong { color: #fff; }
+  .fix-callout {
+    max-width: 1200px;
+    margin: 30px auto 0;
+    background: #1f2d1a;
+    border: 1px solid #4a8b3a;
+    border-radius: 10px;
+    padding: 18px 24px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .fix-callout h3 { margin: 0 0 8px; color: #7ee672; font-size: 14px; }
+  code {
+    background: #0d1117;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #ffa657;
+  }
+</style>
+</head>
+<body>
+
+<h1>How Cora actually works</h1>
+<div class="subtitle">All the pieces that make a voice call into a routed clinic conversation</div>
+
+<div class="canvas">
+
+  <div class="layer">
+    <div class="layer-label">1. Who is calling</div>
+    <div class="row">
+      <div class="box caller">
+        <div class="name">Real human</div>
+        <div class="desc">Phone or browser</div>
+      </div>
+      <div class="box cekura">
+        <div class="name">Cekura test agent</div>
+        <div class="desc">Simulated caller following a scripted scenario</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">&#8595;</div>
+
+  <div class="layer">
+    <div class="layer-label">2. Entry point (the "phone line")</div>
+    <div class="branch">Different paths depending on who calls</div>
+    <div class="row">
+      <div class="box twilio">
+        <div class="name">Twilio</div>
+        <div class="desc">PSTN calls to +1&nbsp;470&nbsp;539&nbsp;8989<br>Streams audio via WebSocket</div>
+      </div>
+      <div class="box cloud">
+        <div class="name">Pipecat Cloud + Daily</div>
+        <div class="desc">WebRTC calls (browser, Cekura)<br>Spins up a Daily room per call</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">&#8595;</div>
+
+  <div class="layer">
+    <div class="layer-label">3. Cora bot (Python on Pipecat Cloud)</div>
+    <div class="pipeline-wrap">
+      <div class="pipeline-title">The Pipecat pipeline (runs inside one container per call)</div>
+      <div class="pipeline">
+        <div class="box bot">
+          <div class="name">Transport in</div>
+          <div class="desc">Receives audio bytes</div>
+        </div>
+        <div class="step-arrow">&#8594;</div>
+        <div class="box svc">
+          <div class="name">STT</div>
+          <div class="desc">NVIDIA Nemotron Speech<br>(speech &#8594; text)</div>
+        </div>
+        <div class="step-arrow">&#8594;</div>
+        <div class="box svc">
+          <div class="name">LLM</div>
+          <div class="desc">Nemotron-3-Super-120B<br>(decides what to say + which tool to call)</div>
+        </div>
+        <div class="step-arrow">&#8594;</div>
+        <div class="box svc">
+          <div class="name">TTS</div>
+          <div class="desc">Gradium<br>(text &#8594; speech)</div>
+        </div>
+        <div class="step-arrow">&#8594;</div>
+        <div class="box bot">
+          <div class="name">Transport out</div>
+          <div class="desc">Sends audio back</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">&#8595;</div>
+
+  <div class="layer">
+    <div class="layer-label">4. The "work" Cora does (Python tools the LLM calls)</div>
+    <div class="row">
+      <div class="box data">
+        <div class="name">lookup_patient</div>
+        <div class="desc">Finds patient by name</div>
+      </div>
+      <div class="box data">
+        <div class="name">check_doctor_availability</div>
+        <div class="desc">Lists doctors + slots</div>
+      </div>
+      <div class="box data">
+        <div class="name">book_appointment</div>
+        <div class="desc">Creates appointment</div>
+      </div>
+      <div class="box data">
+        <div class="name">route_call</div>
+        <div class="desc">Sends to department</div>
+      </div>
+      <div class="box data">
+        <div class="name">escalate_to_human</div>
+        <div class="desc">Hands off to operator</div>
+      </div>
+      <div class="box data">
+        <div class="name">end_call</div>
+        <div class="desc">Hangs up</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">&#8595;</div>
+
+  <div class="layer">
+    <div class="layer-label">5. Data (in-memory mock, not a real DB)</div>
+    <div class="row">
+      <div class="box data">
+        <div class="name">clinic_backend.py</div>
+        <div class="desc">DEPARTMENTS &middot; DOCTORS &middot; AVAILABLE_SLOTS &middot; KNOWN_PATIENTS</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="fix-callout">
+  <h3>The bug we just fixed</h3>
+  When Cekura makes a WebRTC call, Pipecat Cloud hands the bot a <code>DailySessionArguments</code> object. The bot's <code>match runner_args</code> block only handled <code>SmallWebRTCRunnerArguments</code> (local browser) and <code>WebSocketRunnerArguments</code> (Twilio). Daily args hit the catch-all and the bot exited silently. So the container was alive but had no audio transport. The test agent said "Hello", got nothing back, and timed out after 10 seconds. Fix: added <code>daily</code> to Pipecat extras and a <code>DailyTransport</code> case to the bot.
+</div>
+
+<div class="legend">
+  <h3>The mental model</h3>
+  <ul>
+    <li><strong>Pipecat</strong> is the framework that wires audio in &#8594; STT &#8594; LLM &#8594; TTS &#8594; audio out. It does NOT decide what Cora says, that's the LLM.</li>
+    <li><strong>Pipecat Cloud</strong> is the hosting service that runs your bot containers. It uses Daily.co under the hood for WebRTC.</li>
+    <li><strong>Twilio</strong> is only used when a real phone calls your number. Cekura uses the WebRTC path, not Twilio.</li>
+    <li><strong>NVIDIA Nemotron</strong> is the open-weight LLM and STT, hosted on AWS for the hackathon.</li>
+    <li><strong>Gradium</strong> is the TTS (turns Cora's words into audio).</li>
+    <li><strong>Cekura</strong> simulates callers, scores transcripts, and tells you what's failing.</li>
+    <li><strong>The "product"</strong> you built is the Python code in <code>bot-cora.py</code> + <code>clinic_backend.py</code>: the system prompt, the tools, the mock data. Everything else is infrastructure.</li>
+  </ul>
+</div>
+
+</body>
+</html>
